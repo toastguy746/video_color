@@ -1,0 +1,8 @@
+services:
+  colorgrade:
+    build: .
+    ports:
+      - "80:5000"          # 서버 80번 포트 -> 앱. 주소창에 서버 IP만 치면 접속
+    volumes:
+      - ./data:/data       # 영상/결과물이 서버 디스크(./data)에 저장됨
+    restart: unless-stopped
