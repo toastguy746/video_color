@@ -152,7 +152,7 @@
   .drop, .drop.mini { border-radius: 0; }
   .drop.mini { align-self: stretch; }
 
-  .area-side { padding: 16px 16px 0; overflow: auto; }
+  .area-side { padding: 16px 16px 0; overflow: auto; position: relative; }
   .openbtn { margin: auto -16px 0; width: calc(100% + 32px); border-radius: 0; border: 0; padding: 18px; }
   .area-side .side-gap { flex: 1 0 16px; }
 
@@ -183,6 +183,20 @@
   .scrubrow #tscrub { flex: 1; }
   #play { min-width: 104px; font-weight: 600; }
   #tlabel { min-width: 90px; text-align: right; font-size: 13px; color: var(--mute); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Auto 진행 중 오버레이 (오른쪽 설정 칸 전체를 덮음) ---------- */
+  .busy {
+    position: absolute; inset: 0; z-index: 20;
+    background: rgba(0, 0, 0, .88); color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    text-align: center; padding: 24px; font-size: 15px; font-weight: 600; line-height: 1.5;
+    cursor: wait;
+  }
+  .busy .spin {
+    width: 34px; height: 34px; border: 4px solid rgba(255, 255, 255, .25); border-top-color: #fff;
+    border-radius: 50%; animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -231,6 +245,12 @@
       <div class="note" id="autonote"></div>
       <div class="side-gap"></div>
       <button class="btn primary openbtn" id="open">색감 보정</button>
+
+      <!-- Auto 계산 중에 오른쪽 칸을 덮는 안내 -->
+      <div class="busy" id="busy" hidden>
+        <div class="spin"></div>
+        <div>색감을 자동으로 보정하는 중이에요</div>
+      </div>
     </div>
   </section>
 </main>
@@ -473,13 +493,25 @@ function uploadOne(file, onp) {
 }
 
 /* ---------- Auto / 초기화 ---------- */
+function setBusy(on) {
+  $('#busy').hidden = !on;
+  $('#auto').disabled = on;
+  $('#reset').disabled = on;
+}
 $('#auto').addEventListener('click', async () => {
-  if (!state.refId) return;
-  const r = await post('/api/auto', { id: state.refId });
-  const j = await r.json();
-  if (!r.ok) { alert(j.error || '추천값을 계산하지 못했어요.'); return; }
-  setAll(j);
-  $('#autonote').textContent = j.note;
+  if (!state.refId || !$('#busy').hidden) return;
+  setBusy(true);
+  try {
+    const r = await post('/api/auto', { id: state.refId });
+    const j = await r.json();
+    if (!r.ok) { alert(j.error || '추천값을 계산하지 못했어요.'); return; }
+    setAll(j);
+    $('#autonote').textContent = j.note;
+  } catch (_) {
+    alert('서버와 연결이 끊겼어요. 잠시 후 다시 시도해 주세요.');
+  } finally {
+    setBusy(false);
+  }
 });
 $('#reset').addEventListener('click', () => { setAll({}); $('#autonote').textContent = ''; });
 
